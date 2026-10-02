@@ -12,15 +12,15 @@ Keystone turns grant funding into an enforceable on-chain agreement. A funder de
 ## What it uses Arc for
 - **1-click native-USDC funding**: grants are created and funded in a single transaction with zero ERC-20 approvals — possible because USDC *is* Arc's gas token. Releasing a tranche costs ~$0.001 in gas, so milestone payouts as small as a few dollars stay viable.
 - **Sub-second deterministic finality**: approval → payout settles before the reviewer closes the tab.
-- **EVM compatibility**: the whole protocol is one compact Solidity contract (KeystoneEscrow.sol), deployed on Arc mainnet (chain 5042).
+- **EVM compatibility**: the whole protocol is one compact Solidity contract (KeystoneEscrow.sol), built for Arc mainnet (chain 5042) — mainnet deployment in progress, address to be listed below.
 
 ## Links
-- Live app: _(your Vercel URL)_
-- Repo: _(your GitHub URL)_
-- Contract: `contracts/KeystoneEscrow.sol` (MIT, zero protocol fees, reentrancy-guarded)
+- Live app: https://keystone-prakhar-5e28.vercel.app/
+- Repo: https://github.com/orthodevil99/keystone
+- Contract: `contracts/KeystoneEscrow.sol` (MIT, zero protocol fees, reentrancy-guarded) — Arc mainnet address: *deploying, will update here*
 
 ## Demo
-Open the live app → **Connect** → **Demo wallet** → use the role switcher (funder / builder / reviewer) to run every flow: fund a grant, submit proof, approve and release. With a browser wallet on Arc mainnet and the deployed contract address configured, the Create flow executes real `approve` + `createGrant` transactions.
+Open the live app → **Connect** → **Demo wallet** → use the role switcher (funder / builder / reviewer) to run every flow: fund a grant, submit proof, approve and release. With a browser wallet on Arc mainnet and the deployed contract address configured, the Create flow executes a single real `createGrantNative` transaction (native USDC, no ERC-20 approvals).
 
 ## Why it should win
 Grant programs — including this one — run on trust and spreadsheets. Keystone is the infrastructure that makes milestone funding enforceable, and it's only economically possible on a chain like Arc. It's a real contract, a complete product, and a love letter to the program funding it.
