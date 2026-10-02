@@ -61,20 +61,28 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
     setConnecting(true);
     try {
+      // Connect accounts only — never force a chain switch here.
+      // The Arc network switch happens lazily on the first real transaction.
       const accs: string[] = await eth.request({ method: "eth_requestAccounts" });
-      // ensure we're on Arc mainnet
-      try {
-        await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_PARAMS.chainId }] });
-      } catch (switchErr: any) {
-        if (switchErr?.code === 4902) {
-          await eth.request({ method: "wallet_addEthereumChain", params: [ARC_PARAMS] });
-        } else {
-          throw switchErr;
-        }
-      }
       setAddress(accs[0] ?? null);
     } finally {
       setConnecting(false);
+    }
+  }, []);
+
+  const ensureArc = useCallback(async () => {
+    const eth = typeof window !== "undefined" ? window.ethereum : undefined;
+    if (!eth) throw new Error("No injected wallet found.");
+    const chainId: string = await eth.request({ method: "eth_chainId" });
+    if (chainId.toLowerCase() === ARC_PARAMS.chainId.toLowerCase()) return;
+    try {
+      await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: ARC_PARAMS.chainId }] });
+    } catch (switchErr: any) {
+      if (switchErr?.code === 4902) {
+        await eth.request({ method: "wallet_addEthereumChain", params: [ARC_PARAMS] });
+      } else {
+        throw switchErr;
+      }
     }
   }, []);
 
@@ -84,6 +92,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     async ({ address: to, abi, functionName, args, value }: WriteArgs): Promise<Hash> => {
       const eth = window.ethereum;
       if (!eth || !address) throw new Error("Wallet not connected");
+      await ensureArc();
       const client = createWalletClient({
         account: address as `0x${string}`,
         chain: arc,
@@ -91,7 +100,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       });
       return client.writeContract({ address: to, abi, functionName, args, value } as any);
     },
-    [address]
+    [address, ensureArc]
   );
 
   return (
