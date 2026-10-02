@@ -24,12 +24,21 @@ export default function GrantCard({ grant }: { grant: Grant }) {
   const progress = grantProgress(grant);
   const status = grantStatus(grant);
   const paidCount = grant.milestones.filter((m) => m.status === "paid").length;
+  const href = grant.live ? `/grants/live-${grant.id}` : `/grants/${grant.id}`;
 
   return (
-    <Link href={`/grants/${grant.id}`} className="card card-hover group flex flex-col rounded-3xl p-6 sm:p-7">
+    <Link href={href} className="card card-hover group flex flex-col rounded-3xl p-6 sm:p-7">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="eyebrow">{grant.category}</p>
+          <div className="flex items-center gap-2">
+            <p className="eyebrow">{grant.category}</p>
+            {grant.live && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-400/10 px-2 py-0.5 font-mono text-[9.5px] uppercase tracking-[0.14em] text-emerald-300">
+                <span className="h-1 w-1 rounded-full bg-emerald-400" />
+                Live
+              </span>
+            )}
+          </div>
           <h3 className="display mt-2 text-[26px] leading-tight text-bone-100 transition group-hover:text-brass-300">
             {grant.title}
           </h3>

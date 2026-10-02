@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { grantProgress, grantStatus } from "@/lib/demo";
+import { grantProgress, grantStatus, type Grant } from "@/lib/demo";
 import { formatUSDC, shortenAddress, formatDate } from "@/lib/format";
-import { explorerAddress } from "@/lib/arc";
+import { explorerAddress, KEYSTONE_ADDRESS } from "@/lib/arc";
+import { fetchLiveGrant } from "@/lib/live";
 import { useKeystone } from "@/lib/store";
 import Reveal from "@/components/Reveal";
 import ProgressRing from "@/components/ProgressRing";
@@ -34,11 +35,34 @@ function RoleRow({ label, address }: { label: string; address: string }) {
 export default function GrantDetailPage() {
   const params = useParams();
   const router = useRouter();
-  const id = Number(params.id);
+  const rawId = String(params.id);
+  const isLive = rawId.startsWith("live-");
+  const id = Number(isLive ? rawId.slice(5) : rawId);
   const { grants, wallet, role, busy, cancelGrant } = useKeystone();
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [liveGrant, setLiveGrant] = useState<Grant | null>(null);
+  const [liveLoading, setLiveLoading] = useState(isLive);
 
-  const grant = grants.find((g) => g.id === id);
+  useEffect(() => {
+    if (!isLive || !KEYSTONE_ADDRESS) {
+      setLiveLoading(false);
+      return;
+    }
+    fetchLiveGrant(id)
+      .then(setLiveGrant)
+      .catch(() => setLiveGrant(null))
+      .finally(() => setLiveLoading(false));
+  }, [isLive, id]);
+
+  const grant = isLive ? liveGrant : grants.find((g) => g.id === id);
+
+  if (isLive && liveLoading) {
+    return (
+      <div className="mx-auto max-w-3xl px-5 py-32 text-center sm:px-8">
+        <p className="font-mono text-[12px] uppercase tracking-[0.16em] text-bone-100/40">Reading Arc mainnet…</p>
+      </div>
+    );
+  }
 
   if (!grant) {
     return (
@@ -56,7 +80,7 @@ export default function GrantDetailPage() {
   const status = grantStatus(grant);
   const locked = grant.totalAmount - grant.releasedAmount;
   const paidCount = grant.milestones.filter((m) => m.status === "paid").length;
-  const canCancel = wallet && role === "funder" && !grant.cancelled && status !== "complete";
+  const canCancel = !isLive && wallet && role === "funder" && !grant.cancelled && status !== "complete";
 
   const doCancel = async () => {
     try {
@@ -76,6 +100,12 @@ export default function GrantDetailPage() {
             <div className="flex flex-wrap items-center gap-3">
               <p className="eyebrow">{grant.category}</p>
               <StatusPill status={status} />
+              {grant.live && (
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-2.5 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-emerald-300">
+                  <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+                  Live on Arc
+                </span>
+              )}
               {grant.cancelled && <span className="font-mono text-[11px] text-clay-400">escrow dissolved</span>}
             </div>
             <h1 className="display mt-3 text-[46px] leading-[1.02] text-bone-100 sm:text-[62px]">{grant.title}</h1>
@@ -118,7 +148,7 @@ export default function GrantDetailPage() {
               <p className="eyebrow mb-3">About this grant</p>
               <p className="text-[14.5px] leading-relaxed text-bone-100/65">{grant.description}</p>
               <p className="mt-4 font-mono text-[11.5px] text-bone-100/35">
-                Created {formatDate(grant.createdAt)} · demo escrow in USDC
+                Created {formatDate(grant.createdAt)} · {grant.live ? "live escrow on Arc mainnet" : "demo escrow in USDC"}
               </p>
             </div>
           </Reveal>
@@ -133,12 +163,17 @@ export default function GrantDetailPage() {
                 <RoleRow label="Builder" address={grant.builder} />
                 <RoleRow label="Reviewer" address={grant.reviewer} />
               </div>
-              {!wallet && (
+              {!wallet && !grant.live && (
                 <p className="mt-4 rounded-xl border border-brass-500/30 bg-brass-500/5 p-3 text-[12.5px] leading-relaxed text-bone-100/65">
                   Connect the demo wallet to act as funder, builder or reviewer on this grant.
                 </p>
               )}
-              {wallet && (
+              {grant.live && (
+                <p className="mt-4 rounded-xl border border-emerald-400/30 bg-emerald-400/5 p-3 text-[12.5px] leading-relaxed text-bone-100/65">
+                  This is a real on-chain escrow. Connect a browser wallet on Arc mainnet to interact with it.
+                </p>
+              )}
+              {wallet && !grant.live && (
                 <p className="mt-4 font-mono text-[11.5px] leading-relaxed text-bone-100/40">
                   You are acting as <span className="text-brass-300">{role}</span>. Switch roles from the wallet menu to
                   try each flow.

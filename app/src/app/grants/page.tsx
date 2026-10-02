@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { grantStatus } from "@/lib/demo";
+import { useEffect, useMemo, useState } from "react";
+import { grantStatus, type Grant } from "@/lib/demo";
 import { useKeystone } from "@/lib/store";
 import { formatUSDC } from "@/lib/format";
+import { KEYSTONE_ADDRESS } from "@/lib/arc";
+import { fetchLiveGrants } from "@/lib/live";
 import Reveal from "@/components/Reveal";
 import GrantCard from "@/components/GrantCard";
 import Stat from "@/components/Stat";
@@ -13,10 +15,26 @@ const FILTERS = ["all", "funded", "in-progress", "complete"] as const;
 export default function GrantsPage() {
   const { grants } = useKeystone();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
+  const [liveGrants, setLiveGrants] = useState<Grant[] | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
 
-  const visible = useMemo(
+  useEffect(() => {
+    if (!KEYSTONE_ADDRESS) return;
+    setLiveLoading(true);
+    fetchLiveGrants()
+      .then(setLiveGrants)
+      .catch(() => setLiveGrants([]))
+      .finally(() => setLiveLoading(false));
+  }, []);
+
+  const demoVisible = useMemo(
     () => (filter === "all" ? grants : grants.filter((g) => grantStatus(g) === filter)),
     [grants, filter]
+  );
+  const liveVisible = useMemo(
+    () =>
+      filter === "all" ? liveGrants ?? [] : (liveGrants ?? []).filter((g) => grantStatus(g) === filter),
+    [liveGrants, filter]
   );
 
   const totalLocked = grants.reduce((s, g) => s + (g.totalAmount - g.releasedAmount), 0n);
@@ -68,15 +86,46 @@ export default function GrantsPage() {
         ))}
       </div>
 
-      <div className="mt-8 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {visible.map((g, i) => (
+      {KEYSTONE_ADDRESS && (
+        <div className="mt-10">
+          <div className="flex items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-emerald-300">
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
+              Live on Arc
+            </span>
+            <p className="font-mono text-[11.5px] text-bone-100/40">
+              {liveLoading
+                ? "Reading contract…"
+                : liveVisible.length > 0
+                  ? `${liveVisible.length} on-chain grant${liveVisible.length === 1 ? "" : "s"}`
+                  : "No on-chain grants yet — be the first to fund one."}
+            </p>
+          </div>
+          {liveVisible.length > 0 && (
+            <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {liveVisible.map((g, i) => (
+                <Reveal key={`live-${g.id}`} delay={Math.min(i, 5) * 80}>
+                  <GrantCard grant={g} />
+                </Reveal>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="mt-10 flex items-center gap-3">
+        <p className="eyebrow">Demo escrows</p>
+        <p className="font-mono text-[11px] text-bone-100/35">Simulated — for exploring the product</p>
+      </div>
+      <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {demoVisible.map((g, i) => (
           <Reveal key={g.id} delay={Math.min(i, 5) * 80}>
             <GrantCard grant={g} />
           </Reveal>
         ))}
       </div>
 
-      {visible.length === 0 && (
+      {demoVisible.length === 0 && liveVisible.length === 0 && (
         <p className="mt-16 text-center font-mono text-[13px] text-bone-100/40">No grants in this state yet.</p>
       )}
 

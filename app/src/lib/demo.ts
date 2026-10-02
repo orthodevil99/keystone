@@ -44,6 +44,7 @@ export interface Grant {
   cancelled: boolean;
   milestones: Milestone[];
   activity: GrantEvent[];
+  live?: boolean; // true = read from the on-chain contract, not demo data
 }
 
 export const DEMO_WALLET = "0x7A3f1cE9bD24a6F05c8E37d2A9F4b1C6d8E5a0F3";
