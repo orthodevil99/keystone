@@ -1,0 +1,216 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #0a0b0d;
+  --bone: #f4f1e8;
+  --brass: #dfaf5e;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--ink);
+  color: var(--bone);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: #dfaf5e;
+  color: #0a0b0d;
+}
+
+/* ---- grain overlay ---- */
+.grain::after {
+  content: "";
+  position: fixed;
+  inset: -50%;
+  width: 200%;
+  height: 200%;
+  pointer-events: none;
+  z-index: 90;
+  opacity: 0.05;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---- hairline rules ---- */
+.rule {
+  border-color: rgba(244, 241, 232, 0.09);
+}
+
+/* ---- display type ---- */
+.display {
+  font-family: "Instrument Serif", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+.display em {
+  font-style: italic;
+  color: var(--brass);
+}
+
+/* ---- eyebrow labels ---- */
+.eyebrow {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244, 241, 232, 0.55);
+}
+
+/* ---- buttons ---- */
+.btn-brass {
+  background: linear-gradient(180deg, #e9c37c 0%, #d19a3f 100%);
+  color: #0a0b0d;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s ease, filter 0.25s ease;
+  box-shadow: 0 0 0 1px rgba(223, 175, 94, 0.35), 0 8px 32px -8px rgba(209, 154, 63, 0.45);
+}
+.btn-brass:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 0 0 1px rgba(223, 175, 94, 0.5), 0 14px 44px -8px rgba(209, 154, 63, 0.55);
+}
+.btn-brass:active {
+  transform: translateY(0);
+}
+.btn-ghost {
+  border: 1px solid rgba(244, 241, 232, 0.16);
+  transition: border-color 0.25s ease, background 0.25s ease, transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn-ghost:hover {
+  border-color: rgba(223, 175, 94, 0.55);
+  background: rgba(223, 175, 94, 0.07);
+  transform: translateY(-2px);
+}
+
+/* ---- cards ---- */
+.card {
+  background: linear-gradient(180deg, rgba(26, 30, 34, 0.72) 0%, rgba(16, 18, 20, 0.86) 100%);
+  border: 1px solid rgba(244, 241, 232, 0.08);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, box-shadow 0.4s ease;
+}
+.card-hover:hover {
+  transform: translateY(-6px);
+  border-color: rgba(223, 175, 94, 0.35);
+  box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(223, 175, 94, 0.12);
+}
+
+/* ---- inputs ---- */
+.field {
+  background: rgba(10, 11, 13, 0.6);
+  border: 1px solid rgba(244, 241, 232, 0.12);
+  color: var(--bone);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.field:focus {
+  outline: none;
+  border-color: rgba(223, 175, 94, 0.6);
+  box-shadow: 0 0 0 3px rgba(223, 175, 94, 0.12);
+}
+.field::placeholder {
+  color: rgba(244, 241, 232, 0.28);
+}
+
+/* ---- reveal on scroll ---- */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1), transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* ---- arch motif float ---- */
+@keyframes drift {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-14px); }
+}
+.drift {
+  animation: drift 9s ease-in-out infinite;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+.pulse-soft {
+  animation: pulse-soft 2.6s ease-in-out infinite;
+}
+
+/* ---- ticker marquee ---- */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.marquee-track {
+  animation: marquee 36s linear infinite;
+}
+
+/* ---- milestone stone ---- */
+.stone {
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease;
+}
+.stone:hover {
+  transform: translateX(6px);
+}
+
+/* ---- toast ---- */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.toast-in {
+  animation: toast-in 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---- modal ---- */
+@keyframes modal-in {
+  from { opacity: 0; transform: translateY(24px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.modal-in {
+  animation: modal-in 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.fade-in {
+  animation: fade-in 0.3s ease;
+}
+
+/* ---- progress ring ---- */
+.ring-anim {
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ---- shimmer for live dot ---- */
+@keyframes shimmer {
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+/* thin scrollbars */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0b0d;
+}
+::-webkit-scrollbar-thumb {
+  background: #242a30;
+  border-radius: 8px;
+  border: 2px solid #0a0b0d;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #333c44;
+}
