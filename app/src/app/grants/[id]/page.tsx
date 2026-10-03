@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { grantProgress, grantStatus, type Grant } from "@/lib/demo";
@@ -8,6 +8,7 @@ import { formatUSDC, shortenAddress, formatDate } from "@/lib/format";
 import { explorerAddress, KEYSTONE_ADDRESS } from "@/lib/arc";
 import { fetchLiveGrant } from "@/lib/live";
 import { useKeystone } from "@/lib/store";
+import { useWallet } from "@/lib/wallet";
 import Reveal from "@/components/Reveal";
 import ProgressRing from "@/components/ProgressRing";
 import MilestoneTimeline from "@/components/MilestoneTimeline";
@@ -38,21 +39,27 @@ export default function GrantDetailPage() {
   const rawId = String(params.id);
   const isLive = rawId.startsWith("live-");
   const id = Number(isLive ? rawId.slice(5) : rawId);
-  const { grants, wallet, role, busy, cancelGrant } = useKeystone();
+  const { grants, wallet, role, busy, cancelGrant, cancelGrantLive } = useKeystone();
+  const { address: realAddress, isConnected: realConnected } = useWallet();
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [liveGrant, setLiveGrant] = useState<Grant | null>(null);
   const [liveLoading, setLiveLoading] = useState(isLive);
 
-  useEffect(() => {
+  const loadLive = useCallback(() => {
     if (!isLive || !KEYSTONE_ADDRESS) {
       setLiveLoading(false);
       return;
     }
+    setLiveLoading(true);
     fetchLiveGrant(id)
       .then(setLiveGrant)
       .catch(() => setLiveGrant(null))
       .finally(() => setLiveLoading(false));
   }, [isLive, id]);
+
+  useEffect(() => {
+    loadLive();
+  }, [loadLive]);
 
   const grant = isLive ? liveGrant : grants.find((g) => g.id === id);
 
@@ -80,11 +87,19 @@ export default function GrantDetailPage() {
   const status = grantStatus(grant);
   const locked = grant.totalAmount - grant.releasedAmount;
   const paidCount = grant.milestones.filter((m) => m.status === "paid").length;
-  const canCancel = !isLive && wallet && role === "funder" && !grant.cancelled && status !== "complete";
+  const sameAddr = (a?: string | null, b?: string | null) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+  const canCancel = isLive
+    ? realConnected && sameAddr(realAddress, grant.funder) && !grant.cancelled && status !== "complete"
+    : wallet && role === "funder" && !grant.cancelled && status !== "complete";
 
   const doCancel = async () => {
     try {
-      await cancelGrant(grant.id);
+      if (isLive) {
+        await cancelGrantLive(grant.id);
+        loadLive();
+      } else {
+        await cancelGrant(grant.id);
+      }
       setConfirmCancel(false);
     } catch { /* toast shown */ }
   };
@@ -138,7 +153,7 @@ export default function GrantDetailPage() {
                 </p>
               </div>
               <div className="mt-6">
-                <MilestoneTimeline grant={grant} />
+                <MilestoneTimeline grant={grant} onLiveUpdate={loadLive} />
               </div>
             </div>
           </Reveal>
