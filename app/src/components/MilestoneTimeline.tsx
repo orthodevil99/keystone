@@ -4,29 +4,59 @@ import { useState } from "react";
 import { Grant } from "@/lib/demo";
 import { deadlineLabel, formatDate, formatUSDC } from "@/lib/format";
 import { useKeystone } from "@/lib/store";
+import { useWallet } from "@/lib/wallet";
 import Modal from "./Modal";
 import { StatusPill } from "./GrantCard";
 
-export default function MilestoneTimeline({ grant }: { grant: Grant }) {
-  const { wallet, role, busy, submitMilestone, approveMilestone, requestChanges } = useKeystone();
+export default function MilestoneTimeline({ grant, onLiveUpdate }: { grant: Grant; onLiveUpdate?: () => void }) {
+  const { wallet, role, busy, submitMilestone, approveMilestone, requestChanges, submitMilestoneLive, approveMilestoneLive, requestChangesLive } = useKeystone();
+  const { address: realAddress, isConnected: realConnected } = useWallet();
   const [submitIdx, setSubmitIdx] = useState<number | null>(null);
   const [proof, setProof] = useState("");
   const [changesIdx, setChangesIdx] = useState<number | null>(null);
   const [note, setNote] = useState("");
+  const live = !!grant.live;
+
+  // Role checks: live grants use the connected wallet address; demo grants use the role switcher.
+  const sameAddr = (a?: string | null, b?: string | null) => !!a && !!b && a.toLowerCase() === b.toLowerCase();
+  const isBuilder = live ? sameAddr(realAddress, grant.builder) : role === "builder";
+  const isReviewer = live ? sameAddr(realAddress, grant.reviewer) : role === "reviewer";
+  const walletOk = live ? realConnected : !!wallet;
 
   const doSubmit = async () => {
     if (submitIdx === null || !proof.trim()) return;
     try {
-      await submitMilestone(grant.id, submitIdx, proof.trim());
+      if (live) {
+        await submitMilestoneLive(grant.id, submitIdx, proof.trim());
+        onLiveUpdate?.();
+      } else {
+        await submitMilestone(grant.id, submitIdx, proof.trim());
+      }
       setSubmitIdx(null);
       setProof("");
+    } catch { /* toast already shown */ }
+  };
+
+  const doApprove = async (i: number) => {
+    try {
+      if (live) {
+        await approveMilestoneLive(grant.id, i);
+        onLiveUpdate?.();
+      } else {
+        await approveMilestone(grant.id, i);
+      }
     } catch { /* toast already shown */ }
   };
 
   const doRequestChanges = async () => {
     if (changesIdx === null || !note.trim()) return;
     try {
-      await requestChanges(grant.id, changesIdx, note.trim());
+      if (live) {
+        await requestChangesLive(grant.id, changesIdx, note.trim());
+        onLiveUpdate?.();
+      } else {
+        await requestChanges(grant.id, changesIdx, note.trim());
+      }
       setChangesIdx(null);
       setNote("");
     } catch { /* toast already shown */ }
@@ -37,8 +67,8 @@ export default function MilestoneTimeline({ grant }: { grant: Grant }) {
       <div className="flex flex-col gap-0">
         {grant.milestones.map((m, i) => {
           const isLast = i === grant.milestones.length - 1;
-          const canSubmit = wallet && role === "builder" && m.status === "pending" && !grant.cancelled;
-          const canReview = wallet && role === "reviewer" && m.status === "submitted" && !grant.cancelled;
+          const canSubmit = walletOk && isBuilder && m.status === "pending" && !grant.cancelled;
+          const canReview = walletOk && isReviewer && m.status === "submitted" && !grant.cancelled;
           return (
             <div key={i} className="relative flex gap-5 pb-2">
               {/* rail */}
@@ -115,7 +145,7 @@ export default function MilestoneTimeline({ grant }: { grant: Grant }) {
                     {canReview && (
                       <>
                         <button
-                          onClick={() => approveMilestone(grant.id, i).catch(() => {})}
+                          onClick={() => doApprove(i)}
                           disabled={busy}
                           className="rounded-full bg-moss-500 px-4 py-2 text-[12.5px] font-semibold text-ink-950 transition hover:brightness-110 disabled:opacity-50"
                         >
