@@ -3,6 +3,8 @@
 import React, { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
 import { DEMO_GRANTS, DEMO_WALLET, Grant, GrantEvent, Milestone } from "./demo";
 import { fakeTxHash } from "./format";
+import { useWallet } from "./wallet";
+import { KEYSTONE_ADDRESS, keystoneAbi } from "./arc";
 
 export interface Toast {
   id: number;
@@ -39,6 +41,10 @@ interface KeystoneCtx {
   approveMilestone: (grantId: number, index: number) => Promise<bigint>;
   requestChanges: (grantId: number, index: number, note: string) => Promise<void>;
   cancelGrant: (grantId: number) => Promise<void>;
+  submitMilestoneLive: (grantId: number, index: number, proofURI: string) => Promise<string>;
+  approveMilestoneLive: (grantId: number, index: number) => Promise<string>;
+  requestChangesLive: (grantId: number, index: number, note: string) => Promise<string>;
+  cancelGrantLive: (grantId: number) => Promise<string>;
 }
 
 const Ctx = createContext<KeystoneCtx | null>(null);
@@ -255,6 +261,69 @@ export function KeystoneProvider({ children }: { children: React.ReactNode }) {
     [mutateGrant, wallet, pushToast]
   );
 
+  // ---- Live (on-chain) actions — used when grant.live is true ----
+  const { writeContract: realWrite } = useWallet();
+
+  const liveCall = useCallback(
+    async (functionName: string, args: unknown[], toast: { title: string; body: string }) => {
+      if (!KEYSTONE_ADDRESS) throw new Error("Live contract not configured.");
+      setBusy(true);
+      try {
+        const hash = await realWrite({
+          address: KEYSTONE_ADDRESS as `0x${string}`,
+          abi: keystoneAbi,
+          functionName,
+          args,
+        } as any);
+        pushToast({ title: toast.title, body: toast.body, kind: "success", tx: hash });
+        return hash;
+      } catch (e: any) {
+        pushToast({ title: "Transaction failed", body: e?.message?.slice(0, 120) || "Wallet rejected the transaction.", kind: "warn" });
+        throw e;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [realWrite, pushToast]
+  );
+
+  const submitMilestoneLive = useCallback(
+    (grantId: number, index: number, proofURI: string) =>
+      liveCall("submitMilestone", [BigInt(grantId), BigInt(index), proofURI], {
+        title: "Proof submitted on Arc",
+        body: "The reviewer has been notified.",
+      }),
+    [liveCall]
+  );
+
+  const approveMilestoneLive = useCallback(
+    (grantId: number, index: number) =>
+      liveCall("approveMilestone", [BigInt(grantId), BigInt(index)], {
+        title: "Milestone paid",
+        body: "USDC released to the builder — settled in under a second on Arc.",
+      }),
+    [liveCall]
+  );
+
+  const requestChangesLive = useCallback(
+    (grantId: number, index: number, note: string) =>
+      liveCall("requestChanges", [BigInt(grantId), BigInt(index), note], {
+        title: "Changes requested",
+        body: "The builder has been notified. Funds stay locked.",
+      }),
+    [liveCall]
+  );
+
+  const cancelGrantLive = useCallback(
+    (grantId: number) =>
+      liveCall("cancelGrant", [BigInt(grantId)], {
+        title: "Grant cancelled on Arc",
+        body: "Unreleased USDC refunded to the funder.",
+      }),
+    [liveCall]
+  );
+
+
   const value = useMemo(
     () => ({
       grants,
@@ -271,8 +340,12 @@ export function KeystoneProvider({ children }: { children: React.ReactNode }) {
       approveMilestone,
       requestChanges,
       cancelGrant,
+      submitMilestoneLive,
+      approveMilestoneLive,
+      requestChangesLive,
+      cancelGrantLive,
     }),
-    [grants, wallet, role, toasts, busy, connectDemo, disconnect, dismissToast, createGrant, submitMilestone, approveMilestone, requestChanges, cancelGrant]
+    [grants, wallet, role, toasts, busy, connectDemo, disconnect, dismissToast, createGrant, submitMilestone, approveMilestone, requestChanges, cancelGrant, submitMilestoneLive, approveMilestoneLive, requestChangesLive, cancelGrantLive]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
