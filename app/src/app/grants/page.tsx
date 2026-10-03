@@ -17,6 +17,7 @@ export default function GrantsPage() {
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("all");
   const [liveGrants, setLiveGrants] = useState<Grant[] | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
+  const [mode, setMode] = useState<"live" | "demo">(KEYSTONE_ADDRESS ? "live" : "demo");
 
   useEffect(() => {
     if (!KEYSTONE_ADDRESS) return;
@@ -27,18 +28,14 @@ export default function GrantsPage() {
       .finally(() => setLiveLoading(false));
   }, []);
 
-  const demoVisible = useMemo(
-    () => (filter === "all" ? grants : grants.filter((g) => grantStatus(g) === filter)),
-    [grants, filter]
-  );
-  const liveVisible = useMemo(
-    () =>
-      filter === "all" ? liveGrants ?? [] : (liveGrants ?? []).filter((g) => grantStatus(g) === filter),
-    [liveGrants, filter]
+  const activeGrants = mode === "live" ? liveGrants ?? [] : grants;
+  const visible = useMemo(
+    () => (filter === "all" ? activeGrants : activeGrants.filter((g) => grantStatus(g) === filter)),
+    [activeGrants, filter]
   );
 
-  const totalLocked = grants.reduce((s, g) => s + (g.totalAmount - g.releasedAmount), 0n);
-  const totalPaid = grants.reduce((s, g) => s + g.releasedAmount, 0n);
+  const totalLocked = activeGrants.reduce((s, g) => s + (g.totalAmount - g.releasedAmount), 0n);
+  const totalPaid = activeGrants.reduce((s, g) => s + g.releasedAmount, 0n);
 
   return (
     <div className="mx-auto max-w-7xl px-5 py-12 sm:px-8">
@@ -64,13 +61,31 @@ export default function GrantsPage() {
             <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.16em] text-bone-100/40">Released</p>
           </div>
           <div>
-            <Stat value={grants.length} className="text-[22px] text-bone-100" />
+            <Stat value={activeGrants.length} className="text-[22px] text-bone-100" />
             <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.16em] text-bone-100/40">Grants</p>
           </div>
         </div>
       </Reveal>
 
-      <div className="mt-8 flex flex-wrap gap-2">
+      <div className="mt-8 flex flex-wrap items-center gap-2">
+        {KEYSTONE_ADDRESS && (
+          <div className="mr-2 inline-flex rounded-full border rule bg-ink-900/60 p-1">
+            {(["live", "demo"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className={`inline-flex items-center gap-1.5 rounded-full px-4 py-2 font-mono text-[11.5px] uppercase tracking-[0.12em] transition ${
+                  mode === m ? "bg-brass-500 text-ink-950" : "text-bone-100/55 hover:text-bone-100"
+                }`}
+              >
+                {m === "live" && (
+                  <span className={`h-1.5 w-1.5 rounded-full ${mode === "live" ? "bg-ink-950" : "bg-emerald-400 animate-pulse"}`} />
+                )}
+                {m === "live" ? "Live on Arc" : "Demo"}
+              </button>
+            ))}
+          </div>
+        )}
         {FILTERS.map((f) => (
           <button
             key={f}
@@ -86,51 +101,35 @@ export default function GrantsPage() {
         ))}
       </div>
 
-      {KEYSTONE_ADDRESS && (
-        <div className="mt-10">
-          <div className="flex items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-400/10 px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-emerald-300">
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-              Live on Arc
-            </span>
-            <p className="font-mono text-[11.5px] text-bone-100/40">
-              {liveLoading
-                ? "Reading contract…"
-                : liveVisible.length > 0
-                  ? `${liveVisible.length} on-chain grant${liveVisible.length === 1 ? "" : "s"}`
-                  : "No on-chain grants yet — be the first to fund one."}
-            </p>
-          </div>
-          {liveVisible.length > 0 && (
-            <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {liveVisible.map((g, i) => (
-                <Reveal key={`live-${g.id}`} delay={Math.min(i, 5) * 80}>
-                  <GrantCard grant={g} />
-                </Reveal>
-              ))}
-            </div>
-          )}
-        </div>
+      {mode === "live" && KEYSTONE_ADDRESS && (
+        <p className="mt-6 font-mono text-[11.5px] text-bone-100/40">
+          {liveLoading
+            ? "Reading contract…"
+            : visible.length > 0
+              ? `${visible.length} on-chain grant${visible.length === 1 ? "" : "s"} · read directly from Arc mainnet`
+              : "No on-chain grants yet — be the first to fund one."}
+        </p>
+      )}
+      {mode === "demo" && (
+        <p className="mt-6 font-mono text-[11.5px] text-bone-100/40">
+          Simulated escrows — explore the product freely, no wallet needed.
+        </p>
       )}
 
-      <div className="mt-10 flex items-center gap-3">
-        <p className="eyebrow">Demo escrows</p>
-        <p className="font-mono text-[11px] text-bone-100/35">Simulated — for exploring the product</p>
-      </div>
       <div className="mt-5 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-        {demoVisible.map((g, i) => (
-          <Reveal key={g.id} delay={Math.min(i, 5) * 80}>
+        {visible.map((g, i) => (
+          <Reveal key={`${mode}-${g.id}`} delay={Math.min(i, 5) * 80}>
             <GrantCard grant={g} />
           </Reveal>
         ))}
       </div>
 
-      {demoVisible.length === 0 && liveVisible.length === 0 && (
+      {visible.length === 0 && !liveLoading && (
         <p className="mt-16 text-center font-mono text-[13px] text-bone-100/40">No grants in this state yet.</p>
       )}
 
       <p className="mt-10 text-center font-mono text-[11.5px] text-bone-100/35">
-        Showing demo escrows · ${formatUSDC(totalLocked + totalPaid)} total committed
+        {mode === "live" ? "Live on-chain escrows" : "Showing demo escrows"} · ${formatUSDC(totalLocked + totalPaid)} total committed
       </p>
     </div>
   );
