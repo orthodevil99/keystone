@@ -45,8 +45,9 @@ export default function GrantsPage() {
           Every grant, <em>stone by stone.</em>
         </h1>
         <p className="mt-4 max-w-xl text-[15.5px] leading-relaxed text-bone-100/60">
-          Browse live escrows on Keystone. Each card is a real funding commitment — locked USDC, defined milestones,
-          public accountability.
+          {mode === "live" && KEYSTONE_ADDRESS
+            ? "Browse on-chain escrows on Keystone. Each card is a real funding commitment — locked USDC, defined milestones, public accountability."
+            : "Explore simulated escrows and try every flow freely — no wallet needed. Nothing on this page touches the chain."}
         </p>
       </Reveal>
 
