@@ -2,8 +2,31 @@
 
 Run date: 2026-10-06
 Build: `npm run build` in `app/` — passing.
+Browser QA walkthrough completed (read-only) on https://keystone-prakhar-5e28.vercel.app/.
 
 ## Demo journey (must never break)
+
+- [x] Landing loads, hero + stats + ticker render, no console errors
+- [x] Explore shows 7 demo grants, Demo active (no contract configured)
+- [x] Status filters (all / funded / in-progress / complete) filter correctly
+- [x] Grant detail: milestone timeline renders, escrow contract row present
+- [x] Create wizard: all 4 steps, validation, review screen (not submitted)
+- [x] Dashboard loads, role switcher present in Connect modal
+- [ ] Role journey end-to-end with demo wallet (not run — QA was read-only by instruction)
+- [x] Cancel flow messaging correct
+
+## Bugs found & fixed
+
+- [x] Settled milestones showed "overdue" (deadlineLabel ignored status) — fixed: relative
+      deadline label now only renders for pending/submitted milestones.
+- [x] Cancelled grant showed "$2,000.00 locked" (contradicts dissolved escrow) — fixed:
+      cancelled grants now show "$X refunded".
+
+## Mobile (390px)
+
+- [ ] NOT VERIFIED — browser tooling has no viewport-resize action. Static audit done:
+      no fixed-width overflows, ArchArt hidden below lg, comparison table scrolls in its
+      container, touch targets >= 44px. Verify on a real device before submission.
 
 - [ ] Landing loads, hero + stats + ticker render, no console errors
 - [ ] Explore shows 7 demo grants, Live/Demo toggle present (Demo active, no contract configured)
