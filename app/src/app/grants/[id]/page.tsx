@@ -149,7 +149,12 @@ export default function GrantDetailPage() {
               <div className="flex items-baseline justify-between">
                 <p className="eyebrow">Milestones</p>
                 <p className="font-mono text-[12px] text-bone-100/40">
-                  {paidCount}/{grant.milestones.length} paid · ${formatUSDC(locked)} locked
+                  {paidCount}/{grant.milestones.length} paid ·{" "}
+                  {grant.cancelled ? (
+                    <>${formatUSDC(locked)} refunded</>
+                  ) : (
+                    <>${formatUSDC(locked)} locked</>
+                  )}
                 </p>
               </div>
               <div className="mt-6">
