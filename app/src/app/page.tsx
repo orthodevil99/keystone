@@ -1,9 +1,12 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { DEMO_GRANTS } from "@/lib/demo";
+import { DEMO_GRANTS, type Grant } from "@/lib/demo";
 import { formatUSDC } from "@/lib/format";
 import { useKeystone } from "@/lib/store";
+import { KEYSTONE_ADDRESS, explorerAddress } from "@/lib/arc";
+import { fetchLiveGrants } from "@/lib/live";
 import Reveal from "@/components/Reveal";
 import Stat from "@/components/Stat";
 import GrantCard from "@/components/GrantCard";
@@ -35,10 +38,10 @@ function ArchArt() {
         <path d="M104 430V238C104 164 144 112 200 112s96 52 96 126v192" stroke="rgba(223,175,94,0.28)" strokeWidth="1.5" strokeDasharray="5 7" />
         {/* milestone markers on the arch */}
         {[
-          { x: 88, y: 330, label: "$1,200 paid" },
-          { x: 74, y: 250, label: "$1,000 paid" },
-          { x: 326, y: 250, label: "in review" },
-          { x: 312, y: 330, label: "$800 locked" },
+          { x: 88, y: 330 },
+          { x: 74, y: 250 },
+          { x: 326, y: 250 },
+          { x: 312, y: 330 },
         ].map((m, i) => (
           <g key={i}>
             <circle cx={m.x} cy={m.y} r="7" fill="#0A0B0D" stroke="#DFAF5E" strokeWidth="2" />
@@ -80,7 +83,7 @@ const TICKER = [
 function Ticker() {
   const row = [...TICKER, ...TICKER];
   return (
-    <div className="overflow-hidden border-y rule py-4">
+    <div className="overflow-hidden border-y rule py-4" title="Hover to pause">
       <div className="marquee-track flex w-max gap-10">
         {row.map(([g, m, amt, s], i) => (
           <div key={i} className="flex items-center gap-3 whitespace-nowrap">
@@ -96,12 +99,79 @@ function Ticker() {
   );
 }
 
+/* ---------------- interactive how-it-works ---------------- */
+const ROLES = ["Funder", "Builder", "Reviewer"] as const;
+
+const ROLE_STEPS: Record<(typeof ROLES)[number], { t: string; d: string }[]> = {
+  Funder: [
+    { t: "Define", d: "Set milestones, amounts, and deadlines. Name your builder and reviewer — the rules are fixed before a cent moves." },
+    { t: "Lock", d: "Fund the full grant in one USDC transaction. The money enters escrow, not someone's pocket — it can't drift or disappear." },
+    { t: "Track", d: "Watch proofs arrive milestone by milestone. Every submission is timestamped on Arc for anyone to audit." },
+    { t: "Reclaim", d: "Missed deadline? Unreleased funds return to you automatically. Cancel anytime for a full refund of what's unpaid." },
+  ],
+  Builder: [
+    { t: "Accept", d: "Get named on a funded grant. The money is already locked in escrow — the commitment is real before you write a line." },
+    { t: "Build", d: "Ship the work. Milestones, amounts, and deadlines were agreed up front — no scope creep, no moving goalposts." },
+    { t: "Submit", d: "Post proof: a release, a PR, a deployment link. Timestamped on Arc, visible to everyone." },
+    { t: "Get paid", d: "Reviewer approves and USDC lands in under a second. No invoices, no chasing, no 30-day payment terms." },
+  ],
+  Reviewer: [
+    { t: "Verify", d: "You're the quality gate — named at creation, trusted by the funder to judge the work fairly." },
+    { t: "Inspect", d: "Review each proof against the milestone spec. The builder's submission and your decision are both on record." },
+    { t: "Approve", d: "One click releases that milestone's USDC to the builder. Settlement is final before you close the tab." },
+    { t: "Push back", d: "Not good enough? Request changes and the funds stay locked. The builder re-submits — nothing moves until it's right." },
+  ],
+};
+
+function HowItWorks() {
+  const [role, setRole] = useState<(typeof ROLES)[number]>("Funder");
+  return (
+    <div>
+      <div className="inline-flex rounded-full border rule bg-ink-900/60 p-1">
+        {ROLES.map((r) => (
+          <button
+            key={r}
+            onClick={() => setRole(r)}
+            className={`rounded-full px-5 py-3 font-mono text-[12px] uppercase tracking-[0.12em] transition ${
+              role === r ? "bg-brass-500 text-ink-950" : "text-bone-100/55 hover:text-bone-100"
+            }`}
+          >
+            {r}
+          </button>
+        ))}
+      </div>
+      <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+        {ROLE_STEPS[role].map((s, i) => (
+          <Reveal key={`${role}-${i}`} delay={i * 90}>
+            <div className="card card-hover h-full rounded-3xl p-6">
+              <p className="display text-[36px] text-brass-500/80">0{i + 1}</p>
+              <h3 className="display mt-2 text-[24px] text-bone-100">{s.t}</h3>
+              <p className="mt-2.5 text-[13.5px] leading-relaxed text-bone-100/55">{s.d}</p>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+      <p className="mt-6 font-mono text-[11.5px] text-bone-100/35">
+        Four steps, three roles, one contract — the same flow whether you're funding $50 or $50,000.
+      </p>
+    </div>
+  );
+}
+
 /* ---------------- page ---------------- */
 export default function Home() {
   const { wallet, connectDemo } = useKeystone();
+  const [liveGrants, setLiveGrants] = useState<Grant[] | null>(null);
+
+  useEffect(() => {
+    if (!KEYSTONE_ADDRESS) return;
+    fetchLiveGrants().then(setLiveGrants).catch(() => setLiveGrants([]));
+  }, []);
+
+  const statsGrants = liveGrants ?? DEMO_GRANTS;
+  const totalLocked = statsGrants.reduce((s, g) => s + (g.totalAmount - g.releasedAmount), 0n);
+  const totalPaid = statsGrants.reduce((s, g) => s + g.releasedAmount, 0n);
   const featured = DEMO_GRANTS.slice(0, 3);
-  const totalLocked = DEMO_GRANTS.reduce((s, g) => s + (g.totalAmount - g.releasedAmount), 0n);
-  const totalPaid = DEMO_GRANTS.reduce((s, g) => s + g.releasedAmount, 0n);
 
   return (
     <div>
@@ -119,21 +189,20 @@ export default function Home() {
             <Reveal>
               <p className="eyebrow flex items-center gap-3">
                 <span className="inline-block h-px w-10 bg-brass-500/70" />
-                Milestone escrow · built on Arc
+                Milestone escrow · fully trustless · zero fees · on Arc
               </p>
             </Reveal>
             <Reveal delay={90}>
               <h1 className="display mt-6 text-[52px] leading-[1.02] text-bone-100 sm:text-[76px] lg:text-[84px]">
-                Fund the work.
-                <br />
-                Release the <em>proof.</em>
+                Grants that pay for <em>proof,</em> not promises.
               </h1>
             </Reveal>
             <Reveal delay={180}>
               <p className="mt-6 max-w-xl text-[16.5px] leading-relaxed text-bone-100/60">
                 Keystone locks grant funding in USDC escrow and releases it milestone by milestone — only when the work
-                is proven. No invoices, no chasing, no trust required. Settlement is final in under a second, and gas
-                costs cents, so even a <span className="text-bone-100">$5 milestone</span> makes sense.
+                is proven. No custodian, no invoices, no trust required. Settlement is final in under a second, gas
+                costs a tenth of a cent, and the protocol takes <span className="text-bone-100">nothing</span> — so
+                even a <span className="text-bone-100">$5 milestone</span> makes sense.
               </p>
             </Reveal>
             <Reveal delay={260}>
@@ -148,7 +217,7 @@ export default function Home() {
                   </button>
                 )}
                 <Link href="/grants" className="btn-ghost rounded-full px-7 py-3.5 text-[14.5px] font-medium text-bone-100">
-                  Explore grants
+                  How it works
                 </Link>
               </div>
             </Reveal>
@@ -156,14 +225,18 @@ export default function Home() {
               <div className="mt-12 grid max-w-lg grid-cols-3 gap-6 border-t rule pt-6">
                 <div>
                   <Stat value={Number(totalLocked / 1_000_000n)} prefix="$" className="text-[24px] text-bone-100" />
-                  <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.16em] text-bone-100/40">USDC in escrow</p>
+                  <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.16em] text-bone-100/40">
+                    USDC in escrow{liveGrants ? "" : " · demo"}
+                  </p>
                 </div>
                 <div>
                   <Stat value={Number(totalPaid / 1_000_000n)} prefix="$" className="text-[24px] text-bone-100" />
-                  <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.16em] text-bone-100/40">Paid to builders</p>
+                  <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.16em] text-bone-100/40">
+                    Paid to builders{liveGrants ? "" : " · demo"}
+                  </p>
                 </div>
                 <div>
-                  <Stat value={0.8} suffix="s" decimals={1} className="text-[24px] text-brass-300" />
+                  <p className="display text-[24px] text-brass-300">&lt;1s</p>
                   <p className="mt-1 font-mono text-[10.5px] uppercase tracking-[0.16em] text-bone-100/40">Finality on Arc</p>
                 </div>
               </div>
@@ -184,30 +257,148 @@ export default function Home() {
           <h2 className="display mt-4 max-w-2xl text-[40px] leading-[1.05] text-bone-100 sm:text-[54px]">
             Three stones. <em>One arch.</em>
           </h2>
+          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-bone-100/55">
+            Pick a role — every grant runs the same four steps, enforced by one contract instead of paperwork.
+          </p>
         </Reveal>
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
+        <div className="mt-10">
+          <HowItWorks />
+        </div>
+      </section>
+
+      {/* ============ WHY TRUSTLESS ============ */}
+      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+        <Reveal>
+          <div className="card overflow-hidden rounded-[32px]">
+            <div className="grid lg:grid-cols-2">
+              <div className="p-8 sm:p-12">
+                <p className="eyebrow">Trust architecture</p>
+                <h2 className="display mt-4 text-[36px] leading-[1.08] text-bone-100 sm:text-[44px]">
+                  Nobody holds <em>the money.</em>
+                </h2>
+                <p className="mt-4 text-[14.5px] leading-relaxed text-bone-100/60">
+                  Every escrow failure is a custody failure — someone held the funds and broke the promise. Keystone
+                  removes the someone.
+                </p>
+                <ul className="mt-8 space-y-6">
+                  {[
+                    ["No custodian", "The contract holds the USDC — not a company, not a multisig you can't inspect, not us."],
+                    ["No backend", "No server to hack, no database to quietly edit. The chain is the database; every state change is a signed transaction."],
+                    ["No admin keys", "No owner, no pause switch, no upgrade path. Nobody can drain a grant, freeze a payout, or change the rules mid-flight."],
+                    ["Anyone can verify", "Every lock, submission, approval, and payout is an on-chain event. Don't trust the UI — read the contract yourself."],
+                  ].map(([t, d]) => (
+                    <li key={t} className="flex gap-4">
+                      <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-brass-500" />
+                      <div>
+                        <p className="text-[15px] font-semibold text-bone-100">{t}</p>
+                        <p className="mt-1 text-[13.5px] leading-relaxed text-bone-100/55">{d}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex flex-col justify-center border-t rule bg-ink-950/70 p-8 sm:p-12 lg:border-l lg:border-t-0">
+                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-bone-100/40">Escrow contract</p>
+                {KEYSTONE_ADDRESS ? (
+                  <a
+                    href={explorerAddress(KEYSTONE_ADDRESS)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-3 break-all font-mono text-[15px] text-brass-300 hover:underline"
+                  >
+                    {KEYSTONE_ADDRESS} ↗
+                  </a>
+                ) : (
+                  <p className="mt-3 font-mono text-[15px] text-bone-100/50">
+                    Deploying to Arc mainnet — address lands here.
+                  </p>
+                )}
+                <p className="mt-4 text-[13px] leading-relaxed text-bone-100/50">
+                  KeystoneEscrow.sol · MIT licensed · verified source on the Arc explorer. One compact contract, ~9 KB
+                  of bytecode, zero protocol fees.
+                </p>
+                <div className="mt-6 flex flex-wrap gap-3">
+                  <Link href="/grants" className="btn-ghost rounded-full px-6 py-3 text-[13px] font-medium text-bone-100">
+                    Explore grants →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ============ COMPARISON ============ */}
+      <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8">
+        <Reveal>
+          <p className="eyebrow">Why not the old ways</p>
+          <h2 className="display mt-4 max-w-2xl text-[40px] leading-[1.05] text-bone-100 sm:text-[54px]">
+            The old rails <em>tax the work.</em>
+          </h2>
+        </Reveal>
+        <Reveal delay={120}>
+          <div className="mt-10 overflow-x-auto">
+            <table className="w-full min-w-[640px] border-collapse text-left">
+              <thead>
+                <tr className="border-b rule">
+                  <th className="py-4 pr-6 font-mono text-[11px] uppercase tracking-[0.14em] text-bone-100/40" />
+                  <th className="py-4 pr-6 font-mono text-[11px] uppercase tracking-[0.14em] text-brass-300">Keystone</th>
+                  <th className="py-4 pr-6 font-mono text-[11px] uppercase tracking-[0.14em] text-bone-100/40">Traditional grants</th>
+                  <th className="py-4 font-mono text-[11px] uppercase tracking-[0.14em] text-bone-100/40">Content paywalls</th>
+                </tr>
+              </thead>
+              <tbody className="text-[14px]">
+                {[
+                  ["Payment trigger", "Proof of milestone", "Invoices + trust", "Pay-per-view"],
+                  ["Fees", "0% — builders keep it all", "5–15% overhead", "1–5% platform cut"],
+                  ["Settlement", "Under 1 second", "Days to weeks", "Instant, platform-owned"],
+                  ["Transparency", "Fully on-chain", "Quarterly reports", "None"],
+                  ["Smallest viable grant", "~$5", "~$1,000+", "~$1"],
+                ].map(([label, k, t, p]) => (
+                  <tr key={label} className="border-b rule">
+                    <td className="py-4 pr-6 font-mono text-[12px] uppercase tracking-[0.1em] text-bone-100/45">{label}</td>
+                    <td className="py-4 pr-6 font-medium text-bone-100">{k}</td>
+                    <td className="py-4 pr-6 text-bone-100/50">{t}</td>
+                    <td className="py-4 text-bone-100/50">{p}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Reveal>
+      </section>
+
+      {/* ============ USE CASES ============ */}
+      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+        <Reveal>
+          <p className="eyebrow">In the wild</p>
+          <h2 className="display mt-4 max-w-2xl text-[40px] leading-[1.05] text-bone-100 sm:text-[54px]">
+            Built for work <em>like this.</em>
+          </h2>
+        </Reveal>
+        <div className="mt-10 grid gap-5 md:grid-cols-3">
           {[
             {
-              n: "01",
-              t: "Lock",
-              d: "The funder defines milestones and locks the full grant in USDC escrow with a single transaction. The money is committed — it can't drift, and it can't disappear.",
+              t: "Ship the SDK",
+              d: "A protocol funds a $2,400 developer grant across four milestones. Each merged PR unlocks the next payout — no milestone, no money.",
+              tag: "$2,400 · 4 milestones",
             },
             {
-              n: "02",
-              t: "Build",
-              d: "The builder ships each milestone and submits proof — a release, a PR, a deployment. Every submission is timestamped on Arc for the world to audit.",
+              t: "Translate the docs",
+              d: "A $120 micro-grant for Hindi DeFi documentation. Gas costs a tenth of a cent, so funding small, vital work finally makes sense.",
+              tag: "$120 · micro-grant",
             },
             {
-              n: "03",
-              t: "Release",
-              d: "The reviewer approves, and USDC streams to the builder instantly. Sub-second finality, cents in gas. Missed a deadline? Unreleased funds return to the funder.",
+              t: "Audit the auditors",
+              d: "A DAO locks $6,000 for a security review, released section by section. A missed deadline refunds automatically — no chasing required.",
+              tag: "$6,000 · deadline-enforced",
             },
-          ].map((s, i) => (
-            <Reveal key={s.n} delay={i * 110}>
+          ].map((c, i) => (
+            <Reveal key={c.t} delay={i * 100}>
               <div className="card card-hover h-full rounded-3xl p-7">
-                <p className="display text-[44px] text-brass-500/80">{s.n}</p>
-                <h3 className="display mt-3 text-[30px] text-bone-100">{s.t}</h3>
-                <p className="mt-3 text-[14px] leading-relaxed text-bone-100/55">{s.d}</p>
+                <p className="font-mono text-[10.5px] uppercase tracking-[0.16em] text-brass-400">{c.tag}</p>
+                <h3 className="display mt-3 text-[28px] text-bone-100">{c.t}</h3>
+                <p className="mt-3 text-[14px] leading-relaxed text-bone-100/55">{c.d}</p>
               </div>
             </Reveal>
           ))}
@@ -215,7 +406,7 @@ export default function Home() {
       </section>
 
       {/* ============ FEATURED GRANTS ============ */}
-      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
+      <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8">
         <Reveal>
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -239,7 +430,7 @@ export default function Home() {
       </section>
 
       {/* ============ WHY ARC ============ */}
-      <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8">
+      <section className="mx-auto max-w-7xl px-5 py-10 sm:px-8">
         <Reveal>
           <p className="eyebrow">Why Arc</p>
           <h2 className="display mt-4 max-w-3xl text-[40px] leading-[1.05] text-bone-100 sm:text-[54px]">
@@ -269,7 +460,7 @@ export default function Home() {
       </section>
 
       {/* ============ CONTRACT ============ */}
-      <section className="mx-auto max-w-7xl px-5 pb-24 sm:px-8">
+      <section className="mx-auto max-w-7xl px-5 py-24 sm:px-8">
         <Reveal>
           <div className="card overflow-hidden rounded-3xl">
             <div className="grid lg:grid-cols-2">
