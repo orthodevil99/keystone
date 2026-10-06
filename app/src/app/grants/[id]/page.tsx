@@ -165,6 +165,22 @@ export default function GrantDetailPage() {
               <p className="mt-4 font-mono text-[11.5px] text-bone-100/35">
                 Created {formatDate(grant.createdAt)} · {grant.live ? "live escrow on Arc mainnet" : "demo escrow in USDC"}
               </p>
+              <div className="mt-4 flex items-center justify-between gap-3 border-t rule pt-4">
+                <span className="font-mono text-[11px] uppercase tracking-[0.16em] text-bone-100/40">Escrow contract</span>
+                {KEYSTONE_ADDRESS ? (
+                  <a
+                    href={explorerAddress(KEYSTONE_ADDRESS)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-mono text-[12.5px] text-brass-400 hover:underline"
+                    title={KEYSTONE_ADDRESS}
+                  >
+                    {shortenAddress(KEYSTONE_ADDRESS)} ↗
+                  </a>
+                ) : (
+                  <span className="font-mono text-[12px] text-bone-100/40">demo mode — verify on-chain after launch</span>
+                )}
+              </div>
             </div>
           </Reveal>
         </div>
