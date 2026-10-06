@@ -17,10 +17,11 @@ Keystone turns grant funding into an enforceable on-chain agreement. A funder de
 ## Links
 - Live app: https://keystone-prakhar-5e28.vercel.app/
 - Repo: https://github.com/orthodevil99/keystone
-- Contract: `contracts/KeystoneEscrow.sol` (MIT, zero protocol fees, reentrancy-guarded) — Arc mainnet address: *deploying, will update here*
+- Contract: `contracts/KeystoneEscrow.sol` (MIT, zero protocol fees, reentrancy-guarded, no admin keys) — Arc mainnet address: *deploying Oct 8–9, will update here*
+- Trust model: `SECURITY.md` — role permissions, dispute path, known limitations
 
 ## Demo
-Open the live app → **Connect** → **Demo wallet** → use the role switcher (funder / builder / reviewer) to run every flow: fund a grant, submit proof, approve and release. With a browser wallet on Arc mainnet and the deployed contract address configured, the Create flow executes a single real `createGrantNative` transaction (native USDC, no ERC-20 approvals).
+Open the live app → **Connect** → **Demo wallet** → use the role switcher (funder / builder / reviewer) to run every flow across 7 demo grants in varied states (funded, in review, partially paid, completed, cancelled): fund a grant, submit proof, approve and release. Once the contract is deployed and `NEXT_PUBLIC_KEYSTONE_ADDRESS` is configured, the full lifecycle runs on-chain — `createGrantNative` (single-tx native-USDC funding), `submitMilestone`, `approveMilestone`, `requestChanges`, and `cancelGrant` all execute as real Arc mainnet transactions, and Explore reads live grants directly from the contract.
 
 ## Why it should win
 Grant programs — including this one — run on trust and spreadsheets. Keystone is the infrastructure that makes milestone funding enforceable, and it's only economically possible on a chain like Arc. It's a real contract, a complete product, and a love letter to the program funding it.
