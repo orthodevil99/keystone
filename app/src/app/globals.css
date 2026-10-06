@@ -153,6 +153,9 @@ body {
 .marquee-track {
   animation: marquee 36s linear infinite;
 }
+.marquee-track:hover {
+  animation-play-state: paused;
+}
 
 /* ---- milestone stone ---- */
 .stone {
@@ -213,4 +216,18 @@ body {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: #333c44;
+}
+
+/* respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track,
+  .drift,
+  .pulse-soft {
+    animation: none !important;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }
