@@ -109,7 +109,10 @@ export default function MilestoneTimeline({ grant, onLiveUpdate }: { grant: Gran
                   <div className="text-right">
                     <p className="font-mono text-[17px] text-brass-300">${formatUSDC(m.amount)}</p>
                     <p className="mt-0.5 font-mono text-[11px] text-bone-100/40">
-                      due {formatDate(m.deadline)} · {deadlineLabel(m.deadline)}
+                      due {formatDate(m.deadline)}
+                      {(m.status === "pending" || m.status === "submitted") && (
+                        <> · {deadlineLabel(m.deadline)}</>
+                      )}
                     </p>
                   </div>
                 </div>
